@@ -183,8 +183,8 @@ app.delete('/api/rooms/:roomId', authenticate, requireRole('admin'), (req, res) 
   }
 });
 
-// Settings
-app.get('/api/settings', (req, res) => {
+// Settings (GET - all authenticated users can view)
+app.get('/api/settings', authenticate, (req, res) => {
   const config = getCurrentLLMConfig();
   res.json({
     api_url: config.api_url || 'https://api.openai.com/v1',
@@ -194,8 +194,8 @@ app.get('/api/settings', (req, res) => {
   });
 });
 
-// Update settings
-app.post('/api/settings', (req, res) => {
+// Update settings (POST - admin only)
+app.post('/api/settings', authenticate, requireRole('admin'), (req, res) => {
   try {
     const { api_url, api_key, model, temperature, max_tokens } = req.body;
     const updates = {};

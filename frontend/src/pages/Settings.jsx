@@ -1,11 +1,15 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
+import { useAuth } from '../contexts/AuthContext';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
 
 export default function Settings() {
   const navigate = useNavigate();
+  const { user } = useAuth();
+  const isAdmin = user?.role === 'admin';
+
   const [settings, setSettings] = useState({
     api_url: 'https://api.openai.com/v1',
     api_key: '',
@@ -115,7 +119,8 @@ export default function Settings() {
                 value={settings.api_url}
                 onChange={handleChange}
                 placeholder="https://api.openai.com/v1"
-                className="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg focus:ring-2 focus:ring-dnd-purple focus:border-transparent text-white placeholder-gray-400"
+                disabled={!isAdmin}
+                className="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg focus:ring-2 focus:ring-dnd-purple focus:border-transparent text-white placeholder-gray-400 disabled:opacity-50 disabled:cursor-not-allowed"
                 required
               />
               <p className="text-xs text-gray-400 mt-1">
@@ -135,7 +140,8 @@ export default function Settings() {
                 value={settings.api_key}
                 onChange={handleChange}
                 placeholder="sk-..."
-                className="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg focus:ring-2 focus:ring-dnd-purple focus:border-transparent text-white placeholder-gray-400"
+                disabled={!isAdmin}
+                className="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg focus:ring-2 focus:ring-dnd-purple focus:border-transparent text-white placeholder-gray-400 disabled:opacity-50 disabled:cursor-not-allowed"
               />
               <p className="text-xs text-gray-400 mt-1">
                 留空可使用本地模型（如 Ollama）
@@ -154,7 +160,8 @@ export default function Settings() {
                 value={settings.model}
                 onChange={handleChange}
                 placeholder="gpt-4"
-                className="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg focus:ring-2 focus:ring-dnd-purple focus:border-transparent text-white placeholder-gray-400"
+                disabled={!isAdmin}
+                className="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg focus:ring-2 focus:ring-dnd-purple focus:border-transparent text-white placeholder-gray-400 disabled:opacity-50 disabled:cursor-not-allowed"
                 required
               />
               <p className="text-xs text-gray-400 mt-1">
@@ -176,7 +183,8 @@ export default function Settings() {
                 min="0"
                 max="2"
                 step="0.1"
-                className="w-full"
+                disabled={!isAdmin}
+                className="w-full disabled:opacity-50 disabled:cursor-not-allowed"
               />
               <p className="text-xs text-gray-400 mt-1">
                 较低的值使输出更确定性，较高的值使输出更随机
@@ -197,7 +205,8 @@ export default function Settings() {
                 min="100"
                 max="8000"
                 step="100"
-                className="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg focus:ring-2 focus:ring-dnd-purple focus:border-transparent text-white"
+                disabled={!isAdmin}
+                className="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg focus:ring-2 focus:ring-dnd-purple focus:border-transparent text-white disabled:opacity-50 disabled:cursor-not-allowed"
               />
             </div>
           </div>
@@ -219,10 +228,10 @@ export default function Settings() {
           <div className="mt-6 flex gap-3">
             <button
               type="submit"
-              disabled={loading}
+              disabled={loading || !isAdmin}
               className="flex-1 py-3 bg-dnd-purple hover:bg-dnd-purple-dark disabled:bg-gray-600 disabled:cursor-not-allowed text-white font-semibold rounded-lg transition-colors"
             >
-              {loading ? '保存中...' : '保存设置'}
+              {loading ? '保存中...' : isAdmin ? '保存设置' : '仅管理员可修改'}
             </button>
             <button
               type="button"
@@ -232,6 +241,15 @@ export default function Settings() {
               取消
             </button>
           </div>
+
+          {/* Admin Notice */}
+          {!isAdmin && (
+            <div className="mt-4 p-3 bg-yellow-900/30 border border-yellow-700 rounded-lg">
+              <p className="text-sm text-yellow-200">
+                ⚠️ 只有管理员才能修改 LLM 设置。当前设置为只读模式。
+              </p>
+            </div>
+          )}
         </form>
 
         {/* Help Section */}

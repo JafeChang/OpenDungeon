@@ -1,0 +1,10 @@
+{
+  "id": "i18n-core",
+  "name": "Core Translations",
+  "version": "1.0.0",
+  "description": "Core UI translations",
+  "author": "AI-Dungeon-Master",
+  "type": "i18n",
+  "dependencies": [],
+  "enabled": true
+}

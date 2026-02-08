@@ -1,0 +1,10 @@
+{
+  "id": "pf2e-core",
+  "name": "Pathfinder 2e Core Rules",
+  "version": "1.0.0",
+  "description": "Pathfinder Second Edition ruleset",
+  "author": "Paizo",
+  "type": "ruleset",
+  "dependencies": [],
+  "enabled": false
+}

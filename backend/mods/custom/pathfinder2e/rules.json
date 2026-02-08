@@ -1,0 +1,57 @@
+{
+  "name": "Pathfinder 2e",
+  "version": "1.0",
+  "description": "Pathfinder Second Edition rules",
+
+  "abilities": ["STR", "DEX", "CON", "INT", "WIS", "CHA"],
+
+  "skills": [
+    "acrobatics", "arcana", "athletics", "crafting", "deception",
+    "diplomacy", "intimidation", "medicine", "nature", "occultism",
+    "performance", "religion", "society", "stealth", "survival", "thievery"
+  ],
+
+  "conditions": [
+    "blinded", "broken", "clumsy", "concealed", "confused", "controlled",
+    "dazzled", "deafened", "doomed", "drained", "dying", "encumbered",
+    "enfeebled", "fascinated", "fatigued", "flat_footed", "fleeing",
+    "frightened", "grabbed", "hidden", "immobilized", "impaired", "injured",
+    "invisible", "paralyzed", "petrified", "prone", "quickened", "restrained",
+    "sickened", "slowed", "stunned", "unconscious", "undetected", "unfriendly",
+    "unnoticed", "wounded"
+  ],
+
+  "skillAbilities": {
+    "acrobatics": "DEX", "arcana": "INT", "athletics": "STR", "crafting": "INT",
+    "deception": "CHA", "diplomacy": "CHA", "intimidation": "CHA", "medicine": "WIS",
+    "nature": "WIS", "occultism": "INT", "performance": "CHA", "religion": "WIS",
+    "society": "INT", "stealth": "DEX", "survival": "WIS", "thievery": "DEX"
+  },
+
+  "calculateModifier": "(score) => Math.floor((score - 10) / 2)",
+
+  "getProficiencyBonus": "(level) => level + 2",
+
+  "calculateAC": "(character) => 10 + character.modifiers?.DEX || 0",
+
+  "calculateInitiative": "(character) => character.modifiers?.DEX || 0",
+
+  "dice": {
+    "criticalSuccess": "natural 20 or 10 over DC",
+    "criticalFailure": "natural 1 or 10 under DC",
+    "degreesOfSuccess": true,
+    "threeActionEconomy": true
+  },
+
+  "defaultCharacter": {
+    "level": 1,
+    "hp": { current: 0, max: 0, temp: 0 },
+    "stats": { "STR": 10, "DEX": 10, "CON": 10, "INT": 10, "WIS": 10, "CHA": 10 },
+    "proficiency": 0,
+    "armor_class": 10,
+    "speed": 25,
+    "skills": {},
+    "feats": [],
+    "actions": 3
+  }
+}

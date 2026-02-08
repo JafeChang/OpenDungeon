@@ -1,0 +1,25 @@
+[
+  {
+    "id": "weapon_longsword",
+    "name": "Longsword",
+    "type": "weapon",
+    "rarity": "common",
+    "value": "15 gp",
+    "weight": "3 lb.",
+    "damage": "1d8 slashing",
+    "damage_two_handed": "1d10 slashing",
+    "properties": ["versatile"],
+    "description": "A versatile melee weapon favored by many adventurers."
+  },
+  {
+    "id": "weapon_greatsword",
+    "name": "Greatsword",
+    "type": "weapon",
+    "rarity": "common",
+    "value": "50 gp",
+    "weight": "6 lb.",
+    "damage": "2d6 slashing",
+    "properties": ["two-handed"],
+    "description": "A massive two-handed sword that deals devastating damage."
+  }
+]

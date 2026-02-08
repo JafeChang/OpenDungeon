@@ -1,0 +1,49 @@
+version: '3.8'
+
+services:
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: ai-dm-backend
+    ports:
+      - "${BACKEND_PORT:-3002}:3001"
+    volumes:
+      - sqlite-data:/app/data
+      - ./backend:/app
+      - /app/node_modules
+    environment:
+      - NODE_ENV=development
+      - PORT=3001
+      - DATABASE_PATH=/app/data/database.sqlite
+    restart: unless-stopped
+    networks:
+      - ai-dm-network
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: ai-dm-frontend
+    ports:
+      - "${FRONTEND_PORT:-5173}:5173"
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    environment:
+      - VITE_API_URL=http://${HOST_IP:-host.docker.internal}:${BACKEND_PORT:-3002}
+      - VITE_WS_URL=ws://${HOST_IP:-host.docker.internal}:${BACKEND_PORT:-3002}
+    command: sh -c "npm install && npm run dev -- --host 0.0.0.0"
+    restart: unless-stopped
+    networks:
+      - ai-dm-network
+    depends_on:
+      - backend
+
+volumes:
+  sqlite-data:
+    driver: local
+
+networks:
+  ai-dm-network:
+    driver: bridge

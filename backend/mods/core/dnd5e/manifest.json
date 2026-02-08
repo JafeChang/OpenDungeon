@@ -1,0 +1,10 @@
+{
+  "id": "dnd5e-core",
+  "name": "D&D 5e Core Rules",
+  "version": "1.0.0",
+  "description": "Core D&D 5th Edition rules and data",
+  "author": "Wizards of the Coast",
+  "type": "datapack",
+  "dependencies": [],
+  "enabled": true
+}

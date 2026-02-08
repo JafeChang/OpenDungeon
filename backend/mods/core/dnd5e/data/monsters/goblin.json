@@ -1,0 +1,46 @@
+[
+  {
+    "id": "monster_goblin",
+    "name": "Goblin",
+    "cr": 0.25,
+    "hp": "2d6",
+    "ac": 15,
+    "speed": "30 ft.",
+    "stats": {
+      "STR": 8,
+      "DEX": 14,
+      "CON": 10,
+      "INT": 10,
+      "WIS": 8,
+      "CHA": 8
+    },
+    "skills": {
+      "stealth": 6
+    },
+    "senses": "darkvision 60 ft., passive Perception 9",
+    "languages": "Common, Goblin",
+    "challenge": "1/4 (50 XP)",
+    "traits": [
+      {
+        "name": "Nimble Escape",
+        "description": "The goblin can take the Disengage or Hide action as a bonus action on each of its turns."
+      }
+    ],
+    "actions": [
+      {
+        "name": "Scimitar",
+        "type": "weapon",
+        "attack": "+4 to hit, reach 5 ft., one target",
+        "hit": "5 (1d6 + 2) slashing damage",
+        "damage": "1d6+2 slashing"
+      },
+      {
+        "name": "Shortbow",
+        "type": "weapon",
+        "attack": "+4 to hit, range 80/320 ft., one target",
+        "hit": "5 (1d6 + 2) piercing damage",
+        "damage": "1d6+2 piercing"
+      }
+    ]
+  }
+]

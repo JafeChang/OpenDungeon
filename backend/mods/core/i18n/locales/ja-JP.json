@@ -1,0 +1,28 @@
+{
+  "app.name": "AI ダンジョンマスター",
+  "app.subtitle": "D&D 5e TTRPGプラットフォーム",
+
+  "ui.create_room": "ルーム作成",
+  "ui.join_room": "ルーム参加",
+  "ui.settings": "設定",
+  "ui.send": "送信",
+  "ui.leave": "退出",
+
+  "game.dm": "DM",
+  "game.player": "プレイヤー",
+  "game.roll": "ダイスロール",
+  "game.advantage": "有利",
+  "game.disadvantage": "不利",
+  "game.critical_hit": "クリティカルヒット！",
+  "game.critical_fail": "致命的失敗！",
+
+  "stat.strength": "筋力",
+  "stat.dexterity": "敏捷力",
+  "stat.constitution": "耐久力",
+  "stat.intelligence": "知力",
+  "stat.wisdom": "判断力",
+  "stat.charisma": "魅力",
+
+  "skill.perception": "知覚",
+  "skill.stealth": "隠密"
+}

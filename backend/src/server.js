@@ -267,6 +267,7 @@ app.get('/api/rooms/:roomId/messages', optionalAuth, (req, res) => {
   try {
     const { roomId } = req.params;
     const limit = parseInt(req.query.limit) || 100;
+    const db = getDatabase();
 
     const stmt = db.prepare(`
       SELECT id, sender_id as senderId, content, type, metadata, timestamp
@@ -298,6 +299,7 @@ app.post('/api/rooms/:roomId/messages', authenticate, (req, res) => {
   try {
     const { roomId } = req.params;
     const { id, content, type } = req.body;
+    const db = getDatabase();
 
     if (!id || !content || !type) {
       return res.status(400).json({ error: 'id, content, and type are required' });

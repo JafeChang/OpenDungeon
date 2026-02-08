@@ -48,7 +48,13 @@ export default function ChatLog({ messages, onDiceRoll }) {
     if (!message.diceRollRequest || !onDiceRoll) return;
 
     const { type, dc, description } = message.diceRollRequest;
-    const notation = `${type}`;
+
+    // Convert special dice types to standard notation
+    let notation = `${type}`;
+    if (type === 'ability_check' || type === 'skill_check' || type === 'saving_throw') {
+      notation = '1d20';
+    }
+
     const result = rollDice(notation);
 
     // Check for error in roll result

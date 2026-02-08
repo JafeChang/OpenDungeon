@@ -1,4 +1,4 @@
-export default function ChatLog({ messages }) {
+export default function ChatLog({ messages, onDiceRoll }) {
   const getMessageStyle = (type) => {
     switch (type) {
       case 'narrative':
@@ -18,6 +18,44 @@ export default function ChatLog({ messages }) {
     if (message.type === 'system') return '';
     if (message.type === 'narrative') return 'DM';
     return message.senderName || 'Unknown';
+  };
+
+  // Simple dice roll function
+  const rollDice = (notation) => {
+    const match = notation.match(/^(\d+)d(\d+)([+-]\d+)?$/i);
+    if (!match) return { error: 'Invalid notation' };
+
+    const count = parseInt(match[1]);
+    const sides = parseInt(match[2]);
+    const modifier = match[3] ? parseInt(match[3]) : 0;
+
+    const rolls = [];
+    for (let i = 0; i < count; i++) {
+      rolls.push(Math.floor(Math.random() * sides) + 1);
+    }
+
+    const total = rolls.reduce((sum, roll) => sum + roll, 0) + modifier;
+
+    return {
+      total,
+      rolls,
+      modifier,
+      notation
+    };
+  };
+
+  const handleDiceRoll = (message) => {
+    if (!message.diceRollRequest || !onDiceRoll) return;
+
+    const { type, dc, description } = message.diceRollRequest;
+    const notation = `${type}`;
+    const result = rollDice(notation);
+
+    onDiceRoll({
+      messageId: message.id,
+      check: message.diceRollRequest,
+      result
+    });
   };
 
   return (
@@ -41,6 +79,24 @@ export default function ChatLog({ messages }) {
             </div>
           )}
           <p className="text-gray-100 whitespace-pre-wrap">{message.content}</p>
+
+          {/* Dice Roll Request */}
+          {message.diceRollRequest && (
+            <div className="mt-3 p-3 bg-yellow-900/40 border border-yellow-600 rounded-lg">
+              <p className="text-yellow-200 text-sm font-semibold mb-1">
+                🎲 需要检定: {message.diceRollRequest.description}
+              </p>
+              <p className="text-yellow-100 text-xs mb-2">
+                类型: {message.diceRollRequest.type} | DC: {message.diceRollRequest.dc}
+              </p>
+              <button
+                onClick={() => handleDiceRoll(message)}
+                className="px-3 py-1 bg-yellow-600 hover:bg-yellow-500 text-white text-sm font-semibold rounded transition-colors"
+              >
+                投掷 {message.diceRollRequest.type}
+              </button>
+            </div>
+          )}
         </div>
       ))}
     </div>

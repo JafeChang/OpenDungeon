@@ -80,14 +80,26 @@ export default function GameRoom() {
       setConnected(false);
     });
 
-    // Listen for new messages
+    // Listen for new messages from other players (not from self)
     socket.on('new_message', (message) => {
-      setMessages(prev => [...prev, message]);
+      setMessages(prev => {
+        // Check if message already exists to avoid duplicates
+        if (prev.some(m => m.id === message.id)) {
+          return prev;
+        }
+        return [...prev, message];
+      });
     });
 
     // Listen for DM responses from other players
     socket.on('dm_response', (data) => {
-      setMessages(prev => [...prev, data.message]);
+      setMessages(prev => {
+        // Check if message already exists to avoid duplicates
+        if (prev.some(m => m.id === data.message.id)) {
+          return prev;
+        }
+        return [...prev, data.message];
+      });
     });
 
     // Listen for player joined/left
@@ -121,6 +133,77 @@ export default function GameRoom() {
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
+
+  const handleDiceRoll = async (rollData) => {
+    const { messageId, check, result } = rollData;
+
+    // Add roll result message
+    const rollMessage = {
+      id: `roll_${Date.now()}`,
+      senderName: playerName,
+      content: `🎲 检定: ${check.description}\n投掷: ${result.notation} = [${result.rolls.join(', ')}]${result.modifier !== 0 ? (result.modifier > 0 ? '+' : '') + result.modifier : ''} = **${result.total}**\nDC: ${check.dc} | ${result.total >= check.dc ? '✅ 成功' : '❌ 失败'}`,
+      type: 'roll',
+      timestamp: new Date().toISOString()
+    };
+    setMessages(prev => [...prev, rollMessage]);
+
+    // Send roll to AI for response
+    setIsLoadingAI(true);
+    try {
+      const response = await axios.post(`${API_URL}/api/ai/chat`, {
+        message: `(Dice Roll Result: ${result.total} vs DC ${check.dc}, ${result.total >= check.dc ? 'Success' : 'Failure'}) I rolled for ${check.description}.`,
+        context: {
+          recentMessages: [...messages.slice(-5), rollMessage],
+          characters: {
+            [playerName]: { name: playerName, level: 1, class: 'Adventurer', hp: { current: 10, max: 10 } }
+          },
+          language: roomLanguage
+        }
+      });
+
+      const aiMessage = {
+        id: response.data?.id || Date.now().toString(),
+        senderName: 'DM',
+        content: response.data?.narrative || 'Something happens...',
+        type: 'narrative',
+        timestamp: new Date().toISOString(),
+        ...(response.data?.diceRollRequest && { diceRollRequest: response.data.diceRollRequest }),
+        ...(response.data?.events && response.data.events.length > 0 && { events: response.data.events })
+      };
+
+      setMessages(prev => [...prev, aiMessage]);
+
+      // Save AI response to database
+      try {
+        await axios.post(`${API_URL}/api/rooms/${roomId}/messages`, {
+          id: aiMessage.id,
+          content: aiMessage.content,
+          type: 'narrative'
+        }, { headers: { Authorization: `Bearer ${localStorage.getItem('auth_token')}` } });
+      } catch (saveError) {
+        console.error('Failed to save AI message:', saveError);
+      }
+
+      // Broadcast AI response to other players
+      if (connected && socketRef.current) {
+        socketRef.current.emit('dm_response', {
+          roomId,
+          message: aiMessage
+        });
+      }
+    } catch (error) {
+      console.error('AI response error:', error);
+      const errorMessage = {
+        id: Date.now().toString(),
+        type: 'system',
+        content: `AI 响应失败: ${error.response?.data?.error || error.message}. 请检查设置中的 API 配置。`,
+        timestamp: new Date().toISOString()
+      };
+      setMessages(prev => [...prev, errorMessage]);
+    } finally {
+      setIsLoadingAI(false);
+    }
+  };
 
   const handleSendMessage = async (content) => {
     if (!content.trim()) return;
@@ -238,7 +321,7 @@ export default function GameRoom() {
 
       {/* Chat Log */}
       <div className="flex-1 overflow-y-auto scrollbar-dark p-4">
-        <ChatLog messages={messages} />
+        <ChatLog messages={messages} onDiceRoll={handleDiceRoll} />
         <div ref={messagesEndRef} />
       </div>
 

@@ -18,12 +18,11 @@ export default function GameRoom() {
     {
       id: 'welcome',
       type: 'system',
-      content: '欢迎来到 AI Dungeon Master！请先在设置中配置 AI API。',
+      content: '欢迎来到 AI Dungeon Master！AI 已自动启用，开始你的冒险吧！',
       timestamp: new Date().toISOString()
     }
   ]);
   const [connected, setConnected] = useState(false);
-  const [aiEnabled, setAiEnabled] = useState(localStorage.getItem('aiEnabled') === 'true');
   const [isLoadingAI, setIsLoadingAI] = useState(false);
   const [roomName] = useState(localStorage.getItem('roomName') || '游戏房间');
   const [playerName] = useState(localStorage.getItem('playerName') || '玩家');
@@ -108,9 +107,8 @@ export default function GameRoom() {
       });
     }
 
-    // 如果启用了 AI，请求 AI 响应
-    if (aiEnabled) {
-      setIsLoadingAI(true);
+    // 请求 AI 响应
+    setIsLoadingAI(true);
       try {
         const response = await axios.post(`${API_URL}/api/ai/chat`, {
           message: content,
@@ -155,7 +153,6 @@ export default function GameRoom() {
       } finally {
         setIsLoadingAI(false);
       }
-    }
   };
 
   const handleLeaveRoom = () => {
@@ -184,26 +181,12 @@ export default function GameRoom() {
           </p>
         </div>
         <div className="flex items-center gap-3">
-          <label className="flex items-center gap-2 cursor-pointer">
-            <input
-              type="checkbox"
-              checked={aiEnabled}
-              onChange={(e) => {
-                const newValue = e.target.checked;
-                setAiEnabled(newValue);
-                localStorage.setItem('aiEnabled', newValue.toString());
-              }}
-              className="w-4 h-4 rounded"
-            />
-            <span className="text-sm text-white">AI DM</span>
-          </label>
-          <button
-            onClick={handleLeaveRoom}
-            className="px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded-lg transition-colors"
-          >
-            离开房间
-          </button>
-        </div>
+        <button
+          onClick={handleLeaveRoom}
+          className="px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded-lg transition-colors"
+        >
+          离开房间
+        </button>
       </header>
 
       {/* Chat Log */}

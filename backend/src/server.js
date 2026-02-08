@@ -270,10 +270,11 @@ app.get('/api/rooms/:roomId/messages', optionalAuth, (req, res) => {
     const db = getDatabase();
 
     const stmt = db.prepare(`
-      SELECT id, sender_id as senderId, content, type, metadata, timestamp
-      FROM messages
-      WHERE room_id = ?
-      ORDER BY timestamp ASC
+      SELECT m.id, m.sender_id as senderId, p.name as senderName, m.content, m.type, m.metadata, m.timestamp
+      FROM messages m
+      LEFT JOIN players p ON m.sender_id = p.id
+      WHERE m.room_id = ?
+      ORDER BY m.timestamp ASC
       LIMIT ?
     `);
 
@@ -445,6 +446,35 @@ function generateRoomContents(type, level) {
 io.on('connection', (socket) => {
   socket.on('join_room', ({ roomId, playerName }) => {
     socket.join(roomId);
+
+    // Create or get player record
+    try {
+      const db = getDatabase();
+
+      // Check if player already exists in this room
+      const existingPlayer = db.prepare(`
+        SELECT id FROM players WHERE room_id = ? AND name = ?
+      `).get(roomId, playerName);
+
+      let playerId;
+      if (existingPlayer) {
+        playerId = existingPlayer.id;
+      } else {
+        // Create new player record
+        playerId = `player_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
+        db.prepare(`
+          INSERT INTO players (id, room_id, name, type)
+          VALUES (?, ?, ?, ?)
+        `).run(playerId, roomId, playerName, 'human');
+      }
+
+      // Store player info in socket for later use
+      socket.playerId = playerId;
+      socket.playerName = playerName;
+      socket.roomId = roomId;
+    } catch (error) {
+      console.error('Error creating player record:', error);
+    }
   });
 
   socket.on('send_message', (data) => {
@@ -463,23 +493,30 @@ io.on('connection', (socket) => {
     // Broadcast to room
     io.to(roomId).emit('new_message', messageData);
 
-    // Save to database with player name
+    // Save to database
     try {
       const db = getDatabase();
-      const stmt = db.prepare(`
-        INSERT INTO messages (id, room_id, sender_id, content, type, timestamp)
-        VALUES (?, ?, ?, ?, ?, ?)
-      `);
-      // Use playerName as sender_id so we can display it later
-      stmt.run(messageId, roomId, playerName, content, 'speech', timestamp);
+
+      // Get player ID
+      const player = db.prepare(`
+        SELECT id FROM players WHERE room_id = ? AND name = ?
+      `).get(roomId, playerName);
+
+      if (player) {
+        const stmt = db.prepare(`
+          INSERT INTO messages (id, room_id, sender_id, content, type, timestamp)
+          VALUES (?, ?, ?, ?, ?, ?)
+        `);
+        stmt.run(messageId, roomId, player.id, content, 'speech', timestamp);
+      }
     } catch (error) {
       console.error('Error saving message:', error);
     }
   });
 
   socket.on('dm_response', (data) => {
-    const { roomId, message } = data;
-    // 广播给房间内除发送者外的所有人
+    const { roomId, message } = data);
+    // Broadcast to other players in room (not sender)
     socket.to(roomId).emit('dm_response', { message });
   });
 });

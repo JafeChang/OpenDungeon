@@ -5,7 +5,7 @@ let client = null;
 
 export function getLLMConfig() {
   const db = getDatabase();
-  const stmt = db.prepare('SELECT key, value FROM settings WHERE key LIKE "llm_%"');
+  const stmt = db.prepare("SELECT key, value FROM settings WHERE key LIKE 'llm_%'");
   const settings = stmt.all();
 
   const config = {};

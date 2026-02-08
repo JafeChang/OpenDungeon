@@ -16,12 +16,22 @@ export default function Settings() {
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState('');
 
-  // Load settings from localStorage on mount
+  // Load settings from backend on mount
   useEffect(() => {
-    const savedSettings = localStorage.getItem('llm_settings');
-    if (savedSettings) {
-      setSettings(JSON.parse(savedSettings));
-    }
+    const loadSettings = async () => {
+      try {
+        const response = await axios.get(`${API_URL}/api/settings`);
+        setSettings(response.data);
+      } catch (error) {
+        console.error('Failed to load settings:', error);
+        // Fall back to localStorage
+        const savedSettings = localStorage.getItem('llm_settings');
+        if (savedSettings) {
+          setSettings(JSON.parse(savedSettings));
+        }
+      }
+    };
+    loadSettings();
   }, []);
 
   const handleChange = (e) => {
@@ -35,8 +45,10 @@ export default function Settings() {
     setMessage('');
 
     try {
-      // Save to localStorage for now
-      // TODO: Implement backend API for settings
+      // Save to backend
+      await axios.post(`${API_URL}/api/settings`, settings);
+
+      // Also save to localStorage as backup
       localStorage.setItem('llm_settings', JSON.stringify(settings));
 
       // Mask the API key in the message
@@ -53,9 +65,10 @@ export default function Settings() {
         navigate('/');
       }, 1500);
     } catch (error) {
+      console.error('Failed to save settings:', error);
       setMessage({
         type: 'error',
-        text: '保存设置失败：' + error.message
+        text: '保存设置失败：' + (error.response?.data?.error || error.message)
       });
     } finally {
       setLoading(false);

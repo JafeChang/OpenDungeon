@@ -1,4 +1,4 @@
-import { getLLMClient, getLLMConfig } from '../config/llm.js';
+import { getLLMClient, getLLMConfig, updateLLMConfig } from '../config/llm.js';
 import { v4 as uuidv4 } from 'uuid';
 
 /**
@@ -160,7 +160,6 @@ function validateDMResponse(response) {
  * Set LLM configuration
  */
 export function setLLMConfig(config) {
-  const { updateLLMConfig } = require('../config/llm.js');
   return updateLLMConfig(config);
 }
 

@@ -30,6 +30,26 @@ export function getDatabase() {
 }
 
 function createTables() {
+  // Users table
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS users (
+      id TEXT PRIMARY KEY,
+      username TEXT UNIQUE NOT NULL,
+      email TEXT UNIQUE NOT NULL,
+      password_hash TEXT NOT NULL,
+      role TEXT DEFAULT 'player',
+      avatar TEXT,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    )
+  `);
+
+  // Add role column if not exists (for existing databases)
+  try {
+    db.exec(`ALTER TABLE users ADD COLUMN role TEXT DEFAULT 'player'`);
+  } catch (e) {
+    // Column already exists, ignore
+  }
+
   // Rooms table
   db.exec(`
     CREATE TABLE IF NOT EXISTS rooms (
@@ -86,6 +106,8 @@ function createTables() {
     CREATE INDEX IF NOT EXISTS idx_messages_timestamp ON messages(timestamp);
     CREATE INDEX IF NOT EXISTS idx_players_room_id ON players(room_id);
     CREATE INDEX IF NOT EXISTS idx_rooms_status ON rooms(status);
+    CREATE INDEX IF NOT EXISTS idx_users_username ON users(username);
+    CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
   `);
 
   // Insert default settings if they don't exist

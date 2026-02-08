@@ -2,9 +2,20 @@ import express from 'express';
 import { createServer } from 'http';
 import { Server } from 'socket.io';
 import cors from 'cors';
+import { initializeDatabase } from './config/database.js';
+import { generateDMResponse, getCurrentLLMConfig, setLLMConfig } from './api/llm.js';
+import { register, login, getUserById, updateUser, changePassword } from './api/auth.js';
+import { authenticate, optionalAuth, requireRole } from './middleware/auth.js';
+import { getDatabase } from './config/database.js';
 
 const app = express();
 const httpServer = createServer(app);
+
+// Trust proxy for getting correct IP
+app.set('trust proxy', true);
+
+// Initialize database
+initializeDatabase();
 
 const io = new Server(httpServer, {
   cors: {
@@ -23,9 +34,205 @@ app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', message: 'AI Dungeon Master Backend is running' });
 });
 
+// ===== Authentication Routes =====
+
+// Register
+app.post('/api/auth/register', (req, res) => {
+  try {
+    const { username, email, password } = req.body;
+
+    if (!username || !email || !password) {
+      return res.status(400).json({ error: 'Username, email, and password are required' });
+    }
+
+    if (password.length < 6) {
+      return res.status(400).json({ error: 'Password must be at least 6 characters' });
+    }
+
+    const user = register(username, email, password, req);
+    res.status(201).json({
+      message: 'User registered successfully',
+      user: {
+        id: user.id,
+        username: user.username,
+        email: user.email,
+        role: user.role
+      }
+    });
+  } catch (error) {
+    console.error('Registration error:', error);
+    res.status(400).json({ error: error.message });
+  }
+});
+
+// Login
+app.post('/api/auth/login', (req, res) => {
+  try {
+    const { username, password } = req.body;
+
+    if (!username || !password) {
+      return res.status(400).json({ error: 'Username and password are required' });
+    }
+
+    const result = login(username, password);
+    res.json(result);
+  } catch (error) {
+    console.error('Login error:', error);
+    res.status(401).json({ error: error.message });
+  }
+});
+
+// Get current user
+app.get('/api/auth/me', authenticate, (req, res) => {
+  res.json({ user: req.user });
+});
+
+// Update user profile
+app.put('/api/auth/me', authenticate, (req, res) => {
+  try {
+    const user = updateUser(req.userId, req.body);
+    res.json({ user, message: 'Profile updated successfully' });
+  } catch (error) {
+    console.error('Update profile error:', error);
+    res.status(400).json({ error: error.message });
+  }
+});
+
+// Change password
+app.post('/api/auth/change-password', authenticate, (req, res) => {
+  try {
+    const { currentPassword, newPassword } = req.body;
+
+    if (!currentPassword || !newPassword) {
+      return res.status(400).json({ error: 'Current and new password are required' });
+    }
+
+    if (newPassword.length < 6) {
+      return res.status(400).json({ error: 'New password must be at least 6 characters' });
+    }
+
+    changePassword(req.userId, currentPassword, newPassword);
+    res.json({ message: 'Password changed successfully' });
+  } catch (error) {
+    console.error('Change password error:', error);
+    res.status(400).json({ error: error.message });
+  }
+});
+
+// ===== Rooms API =====
+
+// Get all rooms (guest can view)
+app.get('/api/rooms', optionalAuth, (req, res) => {
+  const db = getDatabase();
+  const stmt = db.prepare(`
+    SELECT id, name, status, created_at, updated_at
+    FROM rooms
+    WHERE status = 'active'
+    ORDER BY updated_at DESC
+  `);
+  const rooms = stmt.all();
+  res.json({ rooms });
+});
+
+// Create room (player and above)
+app.post('/api/rooms', authenticate, requireRole('player'), (req, res) => {
+  try {
+    const { name } = req.body;
+
+    if (!name || !name.trim()) {
+      return res.status(400).json({ error: 'Room name is required' });
+    }
+
+    const db = getDatabase();
+    const roomId = `room_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+
+    const stmt = db.prepare(`
+      INSERT INTO rooms (id, name, status, created_at, updated_at)
+      VALUES (?, ?, 'active', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+    `);
+
+    stmt.run(roomId, name.trim());
+
+    res.status(201).json({
+      message: 'Room created successfully',
+      room: { id: roomId, name: name.trim() }
+    });
+  } catch (error) {
+    console.error('Create room error:', error);
+    res.status(500).json({ error: 'Failed to create room' });
+  }
+});
+
+// Delete room (admin only)
+app.delete('/api/rooms/:roomId', authenticate, requireRole('admin'), (req, res) => {
+  try {
+    const { roomId } = req.params;
+    const db = getDatabase();
+
+    const stmt = db.prepare('DELETE FROM rooms WHERE id = ?');
+    const result = stmt.run(roomId);
+
+    if (result.changes === 0) {
+      return res.status(404).json({ error: 'Room not found' });
+    }
+
+    res.json({ message: 'Room deleted successfully' });
+  } catch (error) {
+    console.error('Delete room error:', error);
+    res.status(500).json({ error: 'Failed to delete room' });
+  }
+});
+
 // Settings
 app.get('/api/settings', (req, res) => {
-  res.json({ api_url: 'https://api.openai.com/v1', model: 'gpt-4' });
+  const config = getCurrentLLMConfig();
+  res.json({
+    api_url: config.api_url || 'https://api.openai.com/v1',
+    model: config.model || 'gpt-4',
+    temperature: config.temperature || '0.7',
+    max_tokens: config.max_tokens || '2000'
+  });
+});
+
+// Update settings
+app.post('/api/settings', (req, res) => {
+  try {
+    const { api_url, api_key, model, temperature, max_tokens } = req.body;
+    const updates = {};
+
+    if (api_url) updates.api_url = api_url;
+    if (api_key) updates.api_key = api_key;
+    if (model) updates.model = model;
+    if (temperature) updates.temperature = temperature;
+    if (max_tokens) updates.max_tokens = max_tokens;
+
+    setLLMConfig(updates);
+    res.json({ success: true, message: 'Settings updated' });
+  } catch (error) {
+    console.error('Error updating settings:', error);
+    res.status(500).json({ error: 'Failed to update settings' });
+  }
+});
+
+// AI DM Chat
+app.post('/api/ai/chat', async (req, res) => {
+  try {
+    const { message, context = {} } = req.body;
+
+    if (!message) {
+      return res.status(400).json({ error: 'Message is required' });
+    }
+
+    const response = await generateDMResponse(message, context);
+    res.json(response);
+  } catch (error) {
+    console.error('Error generating AI response:', error);
+    res.status(500).json({
+      error: 'Failed to generate AI response',
+      message: error.message,
+      hint: 'Please check your API credentials in settings'
+    });
+  }
 });
 
 // Rooms

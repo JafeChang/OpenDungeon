@@ -123,13 +123,13 @@ export default function GameRoom() {
         });
 
         const aiMessage = {
-          id: response.id || Date.now().toString(),
+          id: response.data?.id || Date.now().toString(),
           senderName: 'DM',
-          content: response.narrative || 'Something happens...',
+          content: response.data?.narrative || 'Something happens...',
           type: 'narrative',
           timestamp: new Date().toISOString(),
-          ...(response.diceRollRequest && { diceRollRequest: response.diceRollRequest }),
-          ...(response.events && response.events.length > 0 && { events: response.events })
+          ...(response.data?.diceRollRequest && { diceRollRequest: response.data.diceRollRequest }),
+          ...(response.data?.events && response.data.events.length > 0 && { events: response.data.events })
         };
 
         setMessages(prev => [...prev, aiMessage]);

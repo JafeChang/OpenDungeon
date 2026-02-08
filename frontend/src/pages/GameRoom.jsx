@@ -14,14 +14,7 @@ export default function GameRoom() {
   const socketRef = useRef(null);
   const messagesEndRef = useRef(null);
 
-  const [messages, setMessages] = useState([
-    {
-      id: 'welcome',
-      type: 'system',
-      content: '欢迎来到 AI Dungeon Master！AI 已自动启用，开始你的冒险吧！',
-      timestamp: new Date().toISOString()
-    }
-  ]);
+  const [messages, setMessages] = useState([]);
   const [connected, setConnected] = useState(false);
   const [isLoadingAI, setIsLoadingAI] = useState(false);
   const [roomName] = useState(localStorage.getItem('roomName') || '游戏房间');
@@ -30,15 +23,38 @@ export default function GameRoom() {
 
   // Initialize Socket.io connection
   useEffect(() => {
-    // Fetch room info
+    // Fetch room info and message history
     const fetchRoomInfo = async () => {
       try {
         const token = localStorage.getItem('auth_token');
         const headers = token ? { Authorization: `Bearer ${token}` } : {};
-        const response = await axios.get(`${API_URL}/api/rooms/${roomId}`, { headers });
-        if (response.data.room) {
-          setRoomLanguage(response.data.room.language || 'zh');
-          localStorage.setItem('roomLanguage', response.data.room.language || 'zh');
+
+        // Fetch room details
+        const roomResponse = await axios.get(`${API_URL}/api/rooms/${roomId}`, { headers });
+        if (roomResponse.data.room) {
+          setRoomLanguage(roomResponse.data.room.language || 'zh');
+          localStorage.setItem('roomLanguage', roomResponse.data.room.language || 'zh');
+        }
+
+        // Fetch message history
+        const messagesResponse = await axios.get(`${API_URL}/api/rooms/${roomId}/messages`, { headers });
+        if (messagesResponse.data.messages && messagesResponse.data.messages.length > 0) {
+          const historyMessages = messagesResponse.data.messages.map(msg => ({
+            id: msg.id,
+            senderName: msg.senderId || 'Unknown',
+            content: msg.content,
+            type: msg.type,
+            timestamp: msg.timestamp
+          }));
+          setMessages(historyMessages);
+        } else {
+          // Show welcome message for new rooms
+          setMessages([{
+            id: 'welcome',
+            type: 'system',
+            content: '欢迎来到 AI Dungeon Master！AI 已自动启用，开始你的冒险吧！',
+            timestamp: new Date().toISOString()
+          }]);
         }
       } catch (error) {
         console.error('Failed to fetch room info:', error);
@@ -154,6 +170,17 @@ export default function GameRoom() {
       };
 
       setMessages(prev => [...prev, aiMessage]);
+
+      // Save AI response to database
+      try {
+        await axios.post(`${API_URL}/api/rooms/${roomId}/messages`, {
+          id: aiMessage.id,
+          content: aiMessage.content,
+          type: 'narrative'
+        }, { headers: { Authorization: `Bearer ${localStorage.getItem('auth_token')}` } });
+      } catch (saveError) {
+        console.error('Failed to save AI message:', saveError);
+      }
 
       // 通过 Socket.io 广播 AI 响应给其他玩家
       if (connected && socketRef.current) {

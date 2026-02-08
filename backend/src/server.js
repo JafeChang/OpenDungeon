@@ -262,6 +262,89 @@ app.post('/api/settings', authenticate, requireRole('admin'), (req, res) => {
   }
 });
 
+// Get room messages history
+app.get('/api/rooms/:roomId/messages', optionalAuth, (req, res) => {
+  try {
+    const { roomId } = req.params;
+    const limit = parseInt(req.query.limit) || 100;
+
+    const stmt = db.prepare(`
+      SELECT id, sender_id as senderId, content, type, metadata, timestamp
+      FROM messages
+      WHERE room_id = ?
+      ORDER BY timestamp ASC
+      LIMIT ?
+    `);
+
+    const messages = stmt.all(roomId, limit);
+
+    // Parse metadata JSON if exists
+    const parsedMessages = messages.map(msg => ({
+      ...msg,
+      ...(msg.metadata && { metadata: JSON.parse(msg.metadata) }),
+      // Remove metadata after parsing to avoid duplication
+      metadata: undefined
+    }));
+
+    res.json({ messages: parsedMessages });
+  } catch (error) {
+    console.error('Get messages error:', error);
+    res.status(500).json({ error: 'Failed to fetch messages' });
+  }
+});
+
+// Save message to database (for AI responses)
+app.post('/api/rooms/:roomId/messages', authenticate, (req, res) => {
+  try {
+    const { roomId } = req.params;
+    const { id, content, type } = req.body;
+
+    if (!id || !content || !type) {
+      return res.status(400).json({ error: 'id, content, and type are required' });
+    }
+
+    const stmt = db.prepare(`
+      INSERT INTO messages (id, room_id, sender_id, content, type, timestamp)
+      VALUES (?, ?, ?, ?, ?, ?)
+    `);
+
+    stmt.run(id, roomId, null, content, type, new Date().toISOString());
+
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Save message error:', error);
+    res.status(500).json({ error: 'Failed to save message' });
+  }
+});
+  try {
+    const { roomId } = req.params;
+    const limit = parseInt(req.query.limit) || 100;
+
+    const stmt = db.prepare(`
+      SELECT id, sender_id as senderId, content, type, metadata, timestamp
+      FROM messages
+      WHERE room_id = ?
+      ORDER BY timestamp ASC
+      LIMIT ?
+    `);
+
+    const messages = stmt.all(roomId, limit);
+
+    // Parse metadata JSON if exists
+    const parsedMessages = messages.map(msg => ({
+      ...msg,
+      ...(msg.metadata && { metadata: JSON.parse(msg.metadata) }),
+      // Remove metadata after parsing to avoid duplication
+      metadata: undefined
+    }));
+
+    res.json({ messages: parsedMessages });
+  } catch (error) {
+    console.error('Get messages error:', error);
+    res.status(500).json({ error: 'Failed to fetch messages' });
+  }
+});
+
 // AI DM Chat
 app.post('/api/ai/chat', async (req, res) => {
   try {
@@ -392,13 +475,30 @@ io.on('connection', (socket) => {
 
   socket.on('send_message', (data) => {
     const { roomId, playerName, content } = data;
-    io.to(roomId).emit('new_message', {
-      id: Date.now().toString(),
+    const messageId = Date.now().toString();
+    const timestamp = new Date().toISOString();
+
+    const messageData = {
+      id: messageId,
       senderName: playerName,
       content,
       type: 'speech',
-      timestamp: new Date().toISOString()
-    });
+      timestamp
+    };
+
+    // Broadcast to room
+    io.to(roomId).emit('new_message', messageData);
+
+    // Save to database
+    try {
+      const stmt = db.prepare(`
+        INSERT INTO messages (id, room_id, sender_id, content, type, timestamp)
+        VALUES (?, ?, ?, ?, ?, ?)
+      `);
+      stmt.run(messageId, roomId, null, content, 'speech', timestamp);
+    } catch (error) {
+      console.error('Error saving message:', error);
+    }
   });
 
   socket.on('dm_response', (data) => {

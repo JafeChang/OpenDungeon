@@ -283,12 +283,6 @@ app.post('/api/ai/chat', async (req, res) => {
   }
 });
 
-// Rooms
-app.post('/api/rooms', (req, res) => {
-  const room = { id: Date.now().toString(36), name: req.body.name || 'Room' };
-  res.json(room);
-});
-
 // Mods
 app.get('/api/mods', (req, res) => res.json([]));
 

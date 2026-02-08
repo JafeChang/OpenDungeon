@@ -23,7 +23,7 @@ export default function GameRoom() {
     }
   ]);
   const [connected, setConnected] = useState(false);
-  const [aiEnabled, setAiEnabled] = useState(false);
+  const [aiEnabled, setAiEnabled] = useState(localStorage.getItem('aiEnabled') === 'true');
   const [isLoadingAI, setIsLoadingAI] = useState(false);
   const [roomName] = useState(localStorage.getItem('roomName') || '游戏房间');
   const [playerName] = useState(localStorage.getItem('playerName') || '玩家');
@@ -188,7 +188,11 @@ export default function GameRoom() {
             <input
               type="checkbox"
               checked={aiEnabled}
-              onChange={(e) => setAiEnabled(e.target.checked)}
+              onChange={(e) => {
+                const newValue = e.target.checked;
+                setAiEnabled(newValue);
+                localStorage.setItem('aiEnabled', newValue.toString());
+              }}
               className="w-4 h-4 rounded"
             />
             <span className="text-sm text-white">AI DM</span>

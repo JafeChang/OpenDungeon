@@ -21,13 +21,21 @@ export default function Settings() {
     const loadSettings = async () => {
       try {
         const response = await axios.get(`${API_URL}/api/settings`);
-        setSettings(response.data);
+        // Merge with existing settings to preserve api_key (not returned by backend)
+        setSettings(prev => ({
+          ...prev,
+          ...response.data,
+          api_key: prev.api_key || '' // Preserve existing api_key
+        }));
       } catch (error) {
         console.error('Failed to load settings:', error);
         // Fall back to localStorage
         const savedSettings = localStorage.getItem('llm_settings');
         if (savedSettings) {
-          setSettings(JSON.parse(savedSettings));
+          setSettings(prev => ({
+            ...prev,
+            ...JSON.parse(savedSettings)
+          }));
         }
       }
     };

@@ -50,16 +50,16 @@ export default function ChatLog({ messages, onDiceRoll }) {
     const { type, dc, description } = message.diceRollRequest;
 
     // Convert special dice types to standard notation
-    let notation = `${type}`;
-    if (type === 'ability_check' || type === 'skill_check' || type === 'saving_throw') {
-      notation = '1d20';
+    let notation = '1d20'; // Default to d20
+    if (type === 'damage_roll') {
+      notation = '1d8'; // Default damage dice
     }
 
     const result = rollDice(notation);
 
     // Check for error in roll result
     if (!result || result.error) {
-      console.error('Invalid dice notation:', type);
+      console.error('Invalid dice notation:', notation);
       return;
     }
 

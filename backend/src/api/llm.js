@@ -36,10 +36,13 @@ export async function generateDMResponse(playerAction, context = {}) {
     });
 
     const content = response.choices[0].message.content;
+    console.log('AI LLM Response:', content);
     const dmResponse = JSON.parse(content);
 
     // Validate response structure
-    return validateDMResponse(dmResponse);
+    const validated = validateDMResponse(dmResponse);
+    console.log('Validated DM Response:', JSON.stringify(validated, null, 2));
+    return validated;
   } catch (error) {
     console.error('Error generating DM response:', error);
     throw error;

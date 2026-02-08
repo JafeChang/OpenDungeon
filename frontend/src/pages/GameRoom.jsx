@@ -137,15 +137,36 @@ export default function GameRoom() {
   const handleDiceRoll = async (rollData) => {
     const { messageId, check, result } = rollData;
 
+    // Format roll result message
+    let rollContent = `🎲 检定: ${check.description}\n投掷: ${result.notation} = [${result.rolls.join(', ')}]${result.modifier !== 0 ? (result.modifier > 0 ? '+' : '') + result.modifier : ''} = **${result.total}**`;
+
+    // Only show DC comparison if dc is not null
+    if (check.dc !== null && check.dc !== undefined) {
+      const success = result.total >= check.dc;
+      rollContent += `\nDC: ${check.dc} | ${success ? '✅ 成功' : '❌ 失败'}`;
+    } else {
+      rollContent += `\n结果: **${result.total}**`;
+    }
+
     // Add roll result message
     const rollMessage = {
       id: `roll_${Date.now()}`,
       senderName: playerName,
-      content: `🎲 检定: ${check.description}\n投掷: ${result.notation} = [${result.rolls.join(', ')}]${result.modifier !== 0 ? (result.modifier > 0 ? '+' : '') + result.modifier : ''} = **${result.total}**\nDC: ${check.dc} | ${result.total >= check.dc ? '✅ 成功' : '❌ 失败'}`,
+      content: rollContent,
       type: 'roll',
       timestamp: new Date().toISOString()
     };
     setMessages(prev => [...prev, rollMessage]);
+
+    // Broadcast roll to other players in room (backend will save to database)
+    if (connected && socketRef.current) {
+      socketRef.current.emit('send_message', {
+        roomId,
+        playerName,
+        content: rollMessage.content,
+        messageType: 'roll'
+      });
+    }
 
     // Send roll to AI for response
     setIsLoadingAI(true);
@@ -161,6 +182,7 @@ export default function GameRoom() {
         }
       });
 
+      console.log('AI Response for dice roll:', response.data);
       const aiMessage = {
         id: response.data?.id || Date.now().toString(),
         senderName: 'DM',
@@ -170,6 +192,7 @@ export default function GameRoom() {
         ...(response.data?.diceRollRequest && { diceRollRequest: response.data.diceRollRequest }),
         ...(response.data?.events && response.data.events.length > 0 && { events: response.data.events })
       };
+      console.log('AI Message created (dice roll):', aiMessage);
 
       setMessages(prev => [...prev, aiMessage]);
 

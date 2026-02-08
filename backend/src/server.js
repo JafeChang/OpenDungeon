@@ -478,7 +478,7 @@ io.on('connection', (socket) => {
   });
 
   socket.on('send_message', (data) => {
-    const { roomId, playerName, content } = data;
+    const { roomId, playerName, content, messageType = 'speech' } = data;
     const messageId = Date.now().toString();
     const timestamp = new Date().toISOString();
 
@@ -486,36 +486,38 @@ io.on('connection', (socket) => {
       id: messageId,
       senderName: playerName,
       content,
-      type: 'speech',
+      type: messageType,
       timestamp
     };
 
-    // Broadcast to room
-    io.to(roomId).emit('new_message', messageData);
+    // Broadcast to other players in room (not sender)
+    socket.to(roomId).emit('new_message', messageData);
 
-    // Save to database
-    try {
-      const db = getDatabase();
+    // Save to database (skip for system messages)
+    if (messageType !== 'system') {
+      try {
+        const db = getDatabase();
 
-      // Get player ID
-      const player = db.prepare(`
-        SELECT id FROM players WHERE room_id = ? AND name = ?
-      `).get(roomId, playerName);
+        // Get player ID
+        const player = db.prepare(`
+          SELECT id FROM players WHERE room_id = ? AND name = ?
+        `).get(roomId, playerName);
 
-      if (player) {
-        const stmt = db.prepare(`
-          INSERT INTO messages (id, room_id, sender_id, content, type, timestamp)
-          VALUES (?, ?, ?, ?, ?, ?)
-        `);
-        stmt.run(messageId, roomId, player.id, content, 'speech', timestamp);
+        if (player) {
+          const stmt = db.prepare(`
+            INSERT INTO messages (id, room_id, sender_id, content, type, timestamp)
+            VALUES (?, ?, ?, ?, ?, ?)
+          `);
+          stmt.run(messageId, roomId, player.id, content, messageType, timestamp);
+        }
+      } catch (error) {
+        console.error('Error saving message:', error);
       }
-    } catch (error) {
-      console.error('Error saving message:', error);
     }
   });
 
   socket.on('dm_response', (data) => {
-    const { roomId, message } = data);
+    const { roomId, message } = data;
     // Broadcast to other players in room (not sender)
     socket.to(roomId).emit('dm_response', { message });
   });

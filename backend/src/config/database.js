@@ -57,10 +57,18 @@ function createTables() {
       name TEXT NOT NULL,
       status TEXT DEFAULT 'active',
       world_state TEXT,
+      language TEXT DEFAULT 'en',
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
       updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
     )
   `);
+
+  // Add language column if not exists (for existing databases)
+  try {
+    db.exec(`ALTER TABLE rooms ADD COLUMN language TEXT DEFAULT 'en'`);
+  } catch (e) {
+    // Column already exists, ignore
+  }
 
   // Players table
   db.exec(`

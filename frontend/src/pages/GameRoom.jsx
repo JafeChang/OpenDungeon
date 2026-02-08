@@ -26,9 +26,26 @@ export default function GameRoom() {
   const [isLoadingAI, setIsLoadingAI] = useState(false);
   const [roomName] = useState(localStorage.getItem('roomName') || '游戏房间');
   const [playerName] = useState(localStorage.getItem('playerName') || '玩家');
+  const [roomLanguage, setRoomLanguage] = useState(localStorage.getItem('roomLanguage') || 'zh');
 
   // Initialize Socket.io connection
   useEffect(() => {
+    // Fetch room info
+    const fetchRoomInfo = async () => {
+      try {
+        const token = localStorage.getItem('auth_token');
+        const headers = token ? { Authorization: `Bearer ${token}` } : {};
+        const response = await axios.get(`${API_URL}/api/rooms/${roomId}`, { headers });
+        if (response.data.room) {
+          setRoomLanguage(response.data.room.language || 'zh');
+          localStorage.setItem('roomLanguage', response.data.room.language || 'zh');
+        }
+      } catch (error) {
+        console.error('Failed to fetch room info:', error);
+      }
+    };
+    fetchRoomInfo();
+
     const socket = io(WS_URL);
 
     socket.on('connect', () => {
@@ -109,50 +126,51 @@ export default function GameRoom() {
 
     // 请求 AI 响应
     setIsLoadingAI(true);
-      try {
-        const response = await axios.post(`${API_URL}/api/ai/chat`, {
-          message: content,
-          context: {
-            recentMessages: messages.slice(-5),
-            characters: {
-              [playerName]: { name: playerName, level: 1, class: 'Adventurer', hp: { current: 10, max: 10 } }
-            }
-          }
-        });
-
-        const aiMessage = {
-          id: response.data?.id || Date.now().toString(),
-          senderName: 'DM',
-          content: response.data?.narrative || 'Something happens...',
-          type: 'narrative',
-          timestamp: new Date().toISOString(),
-          ...(response.data?.diceRollRequest && { diceRollRequest: response.data.diceRollRequest }),
-          ...(response.data?.events && response.data.events.length > 0 && { events: response.data.events })
-        };
-
-        setMessages(prev => [...prev, aiMessage]);
-
-        // 也通过 Socket.io 广播 AI 响应
-        if (connected && socketRef.current) {
-          socketRef.current.emit('send_message', {
-            roomId,
-            playerId: 'ai-dm',
-            senderName: 'DM',
-            content: aiMessage.content
-          });
+    try {
+      const response = await axios.post(`${API_URL}/api/ai/chat`, {
+        message: content,
+        context: {
+          recentMessages: messages.slice(-5),
+          characters: {
+            [playerName]: { name: playerName, level: 1, class: 'Adventurer', hp: { current: 10, max: 10 } }
+          },
+          language: roomLanguage
         }
-      } catch (error) {
-        console.error('AI response error:', error);
-        const errorMessage = {
-          id: Date.now().toString(),
-          type: 'system',
-          content: `AI 响应失败: ${error.response?.data?.error || error.message}. 请检查设置中的 API 配置。`,
-          timestamp: new Date().toISOString()
-        };
-        setMessages(prev => [...prev, errorMessage]);
-      } finally {
-        setIsLoadingAI(false);
+      });
+
+      const aiMessage = {
+        id: response.data?.id || Date.now().toString(),
+        senderName: 'DM',
+        content: response.data?.narrative || 'Something happens...',
+        type: 'narrative',
+        timestamp: new Date().toISOString(),
+        ...(response.data?.diceRollRequest && { diceRollRequest: response.data.diceRollRequest }),
+        ...(response.data?.events && response.data.events.length > 0 && { events: response.data.events })
+      };
+
+      setMessages(prev => [...prev, aiMessage]);
+
+      // 也通过 Socket.io 广播 AI 响应
+      if (connected && socketRef.current) {
+        socketRef.current.emit('send_message', {
+          roomId,
+          playerId: 'ai-dm',
+          senderName: 'DM',
+          content: aiMessage.content
+        });
       }
+    } catch (error) {
+      console.error('AI response error:', error);
+      const errorMessage = {
+        id: Date.now().toString(),
+        type: 'system',
+        content: `AI 响应失败: ${error.response?.data?.error || error.message}. 请检查设置中的 API 配置。`,
+        timestamp: new Date().toISOString()
+      };
+      setMessages(prev => [...prev, errorMessage]);
+    } finally {
+      setIsLoadingAI(false);
+    }
   };
 
   const handleLeaveRoom = () => {

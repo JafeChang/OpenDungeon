@@ -15,13 +15,13 @@ export async function generateDMResponse(playerAction, context = {}) {
     throw new Error('LLM client not configured. Please set API credentials.');
   }
 
-  const { roomState = {}, recentMessages = [], characters = {} } = context;
+  const { roomState = {}, recentMessages = [], characters = {}, language = 'en' } = context;
 
   // Build the system prompt for D&D 5e DM
-  const systemPrompt = buildDMSystemPrompt(roomState, characters);
+  const systemPrompt = buildDMSystemPrompt(roomState, characters, language);
 
   // Build the user message with context
-  const userMessage = buildUserMessage(playerAction, recentMessages, characters);
+  const userMessage = buildUserMessage(playerAction, recentMessages, characters, language);
 
   try {
     const response = await client.chat.completions.create({
@@ -49,17 +49,39 @@ export async function generateDMResponse(playerAction, context = {}) {
 /**
  * Build the system prompt for the AI Dungeon Master
  */
-function buildDMSystemPrompt(roomState, characters) {
-  return `You are an AI Dungeon Master for a D&D 5th Edition tabletop RPG game. Your role is to:
+function buildDMSystemPrompt(roomState, characters, language = 'en') {
+  const languagePrompts = {
+    en: `You are an AI Dungeon Master for a D&D 5th Edition tabletop RPG game. Your role is to:
 
 1. Narrate the story in an engaging, descriptive manner
 2. Respond to player actions following D&D 5e rules
 3. Determine outcomes based on player actions and dice rolls
 4. Request dice rolls when necessary (ability checks, saving throws, attack rolls)
-5. Track and update character states (HP, conditions, inventory)
+5. Track and update character states (HP, conditions, inventory)`,
+
+    zh: `你是一个 D&D 5e 桌面角色扮演游戏的 AI 地下城主（DM）。你的职责是：
+
+1. 用生动有趣的方式叙述故事
+2. 根据 D&D 5e 规则回应玩家行动
+3. 根据玩家行动和骰子点数判定结果
+4. 在必要时要求骰子检定（属性检定、豁免、攻击检定）
+5. 追踪和更新角色状态（生命值、状态、装备）`,
+
+    ja: `あなたはD&D第5版テーブルトークRPGゲームのAIダンジョンマスターです。役割は以下の通りです：
+
+1. 没入感のある描写で物語を語る
+2. D&D 5eルールに従ってプレイヤーの行動に応答する
+3. プレイヤーの行動とダイスロールに基づいて結果を判定する
+4. 必要に応じてダイスロールを要求する（能力判定、セーヴィングスロー、攻撃ロール）
+5. キャラクター状態（HP、状態、装備）を追跡・更新する`
+  };
+
+  const basePrompt = languagePrompts[language] || languagePrompts.en;
+
+  return `${basePrompt}
 
 CURRENT GAME STATE:
-${roomState.description || 'A new adventure begins.'}
+${roomState.description || (language === 'zh' ? '新的冒险开始了' : language === 'ja' ? '新しい冒険の始まり' : 'A new adventure begins.')}
 
 CHARACTERS IN PARTY:
 ${Object.entries(characters).map(([id, char]) =>
@@ -112,18 +134,36 @@ D&D 5e QUICK REFERENCE:
 /**
  * Build the user message with action and context
  */
-function buildUserMessage(playerAction, recentMessages, characters) {
-  let message = `PLAYER ACTION: ${playerAction}\n\n`;
+function buildUserMessage(playerAction, recentMessages, characters, language = 'en') {
+  const actionLabel = {
+    en: 'PLAYER ACTION',
+    zh: '玩家行动',
+    ja: 'プレイヤーの行動'
+  }[language] || 'PLAYER ACTION';
+
+  const contextLabel = {
+    en: 'RECENT CONTEXT',
+    zh: '最近上下文',
+    ja: '最近のコンテキスト'
+  }[language] || 'RECENT CONTEXT';
+
+  const instruction = {
+    en: 'Please respond as the Dungeon Master. Narrate the outcome of this action, request any necessary dice rolls, and update character states as needed.',
+    zh: '请以地下城主身份回应。叙述这个行动的结果，请求必要的骰子检定，并更新角色状态。',
+    ja: 'ダンジョンマスターとして応答してください。この行動の結果を語り、必要なダイスロールを要求し、キャラクター状態を更新してください。'
+  }[language] || 'Please respond as the Dungeon Master. Narrate the outcome of this action, request any necessary dice rolls, and update character states as needed.';
+
+  let message = `${actionLabel}: ${playerAction}\n\n`;
 
   if (recentMessages.length > 0) {
-    message += `RECENT CONTEXT:\n`;
+    message += `${contextLabel}:\n`;
     recentMessages.slice(-5).forEach(msg => {
       message += `- ${msg.senderName || 'DM'}: ${msg.content}\n`;
     });
     message += '\n';
   }
 
-  message += `Please respond as the Dungeon Master. Narrate the outcome of this action, request any necessary dice rolls, and update character states as needed.`;
+  message += instruction;
 
   return message;
 }

@@ -125,7 +125,7 @@ app.post('/api/auth/change-password', authenticate, (req, res) => {
 app.get('/api/rooms', optionalAuth, (req, res) => {
   const db = getDatabase();
   const stmt = db.prepare(`
-    SELECT id, name, status, created_at, updated_at
+    SELECT id, name, status, language, created_at, updated_at
     FROM rooms
     WHERE status = 'active'
     ORDER BY updated_at DESC
@@ -134,10 +134,58 @@ app.get('/api/rooms', optionalAuth, (req, res) => {
   res.json({ rooms });
 });
 
+// Get room by ID
+app.get('/api/rooms/:roomId', optionalAuth, (req, res) => {
+  const { roomId } = req.params;
+  const db = getDatabase();
+  const stmt = db.prepare(`
+    SELECT id, name, status, language, created_at, updated_at
+    FROM rooms
+    WHERE id = ? AND status = 'active'
+  `);
+  const room = stmt.get(roomId);
+
+  if (!room) {
+    return res.status(404).json({ error: 'Room not found' });
+  }
+
+  res.json({ room });
+});
+
+// Update room language
+app.patch('/api/rooms/:roomId', authenticate, requireRole('player'), (req, res) => {
+  try {
+    const { roomId } = req.params;
+    const { language } = req.body;
+
+    if (!language || !['en', 'zh', 'ja'].includes(language)) {
+      return res.status(400).json({ error: 'Invalid language. Must be one of: en, zh, ja' });
+    }
+
+    const db = getDatabase();
+    const stmt = db.prepare(`
+      UPDATE rooms
+      SET language = ?, updated_at = CURRENT_TIMESTAMP
+      WHERE id = ?
+    `);
+
+    const result = stmt.run(language, roomId);
+
+    if (result.changes === 0) {
+      return res.status(404).json({ error: 'Room not found' });
+    }
+
+    res.json({ message: 'Room language updated', language });
+  } catch (error) {
+    console.error('Update room error:', error);
+    res.status(500).json({ error: 'Failed to update room' });
+  }
+});
+
 // Create room (player and above)
 app.post('/api/rooms', authenticate, requireRole('player'), (req, res) => {
   try {
-    const { name } = req.body;
+    const { name, language = 'en' } = req.body;
 
     if (!name || !name.trim()) {
       return res.status(400).json({ error: 'Room name is required' });
@@ -147,15 +195,15 @@ app.post('/api/rooms', authenticate, requireRole('player'), (req, res) => {
     const roomId = `room_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
 
     const stmt = db.prepare(`
-      INSERT INTO rooms (id, name, status, created_at, updated_at)
-      VALUES (?, ?, 'active', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+      INSERT INTO rooms (id, name, status, language, created_at, updated_at)
+      VALUES (?, ?, 'active', ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
     `);
 
-    stmt.run(roomId, name.trim());
+    stmt.run(roomId, name.trim(), language);
 
     res.status(201).json({
       message: 'Room created successfully',
-      room: { id: roomId, name: name.trim() }
+      room: { id: roomId, name: name.trim(), language }
     });
   } catch (error) {
     console.error('Create room error:', error);

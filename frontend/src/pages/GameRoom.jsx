@@ -69,6 +69,11 @@ export default function GameRoom() {
       setMessages(prev => [...prev, message]);
     });
 
+    // Listen for DM responses from other players
+    socket.on('dm_response', (data) => {
+      setMessages(prev => [...prev, data.message]);
+    });
+
     // Listen for player joined/left
     socket.on('player_joined', (data) => {
       setMessages(prev => [...prev, {
@@ -150,13 +155,11 @@ export default function GameRoom() {
 
       setMessages(prev => [...prev, aiMessage]);
 
-      // 也通过 Socket.io 广播 AI 响应
+      // 通过 Socket.io 广播 AI 响应给其他玩家
       if (connected && socketRef.current) {
-        socketRef.current.emit('send_message', {
+        socketRef.current.emit('dm_response', {
           roomId,
-          playerId: 'ai-dm',
-          senderName: 'DM',
-          content: aiMessage.content
+          message: aiMessage
         });
       }
     } catch (error) {

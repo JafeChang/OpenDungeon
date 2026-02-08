@@ -399,16 +399,12 @@ io.on('connection', (socket) => {
       type: 'speech',
       timestamp: new Date().toISOString()
     });
-    
-    // Demo DM response
-    setTimeout(() => {
-      io.to(roomId).emit('new_message', {
-        senderName: 'DM',
-        content: `[演示] ${playerName}: ${content}`,
-        type: 'narrative',
-        timestamp: new Date().toISOString()
-      });
-    }, 1000);
+  });
+
+  socket.on('dm_response', (data) => {
+    const { roomId, message } = data;
+    // 广播给房间内除发送者外的所有人
+    socket.to(roomId).emit('dm_response', { message });
   });
 });
 

@@ -41,7 +41,7 @@ export default function GameRoom() {
         if (messagesResponse.data.messages && messagesResponse.data.messages.length > 0) {
           const historyMessages = messagesResponse.data.messages.map(msg => ({
             id: msg.id,
-            senderName: msg.senderId || 'Unknown',
+            senderName: msg.senderId || msg.senderName || 'Unknown',
             content: msg.content,
             type: msg.type,
             timestamp: msg.timestamp

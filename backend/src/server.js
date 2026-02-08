@@ -463,13 +463,15 @@ io.on('connection', (socket) => {
     // Broadcast to room
     io.to(roomId).emit('new_message', messageData);
 
-    // Save to database
+    // Save to database with player name
     try {
+      const db = getDatabase();
       const stmt = db.prepare(`
         INSERT INTO messages (id, room_id, sender_id, content, type, timestamp)
         VALUES (?, ?, ?, ?, ?, ?)
       `);
-      stmt.run(messageId, roomId, null, content, 'speech', timestamp);
+      // Use playerName as sender_id so we can display it later
+      stmt.run(messageId, roomId, playerName, content, 'speech', timestamp);
     } catch (error) {
       console.error('Error saving message:', error);
     }

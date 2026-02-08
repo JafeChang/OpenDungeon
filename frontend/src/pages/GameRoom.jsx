@@ -180,7 +180,6 @@ export default function GameRoom() {
             )}
           </p>
         </div>
-        <div className="flex items-center gap-3">
         <button
           onClick={handleLeaveRoom}
           className="px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded-lg transition-colors"

@@ -316,34 +316,6 @@ app.post('/api/rooms/:roomId/messages', authenticate, (req, res) => {
     res.status(500).json({ error: 'Failed to save message' });
   }
 });
-  try {
-    const { roomId } = req.params;
-    const limit = parseInt(req.query.limit) || 100;
-
-    const stmt = db.prepare(`
-      SELECT id, sender_id as senderId, content, type, metadata, timestamp
-      FROM messages
-      WHERE room_id = ?
-      ORDER BY timestamp ASC
-      LIMIT ?
-    `);
-
-    const messages = stmt.all(roomId, limit);
-
-    // Parse metadata JSON if exists
-    const parsedMessages = messages.map(msg => ({
-      ...msg,
-      ...(msg.metadata && { metadata: JSON.parse(msg.metadata) }),
-      // Remove metadata after parsing to avoid duplication
-      metadata: undefined
-    }));
-
-    res.json({ messages: parsedMessages });
-  } catch (error) {
-    console.error('Get messages error:', error);
-    res.status(500).json({ error: 'Failed to fetch messages' });
-  }
-});
 
 // AI DM Chat
 app.post('/api/ai/chat', async (req, res) => {

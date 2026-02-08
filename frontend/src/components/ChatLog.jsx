@@ -51,6 +51,12 @@ export default function ChatLog({ messages, onDiceRoll }) {
     const notation = `${type}`;
     const result = rollDice(notation);
 
+    // Check for error in roll result
+    if (!result || result.error) {
+      console.error('Invalid dice notation:', type);
+      return;
+    }
+
     onDiceRoll({
       messageId: message.id,
       check: message.diceRollRequest,
